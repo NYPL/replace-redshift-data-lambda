@@ -12,13 +12,10 @@ def lambda_handler(event, context):
     logger.info('Connecting to Redshift')
     try:
         connection = redshift_connector.connect(
-            iam=True,
-            cluster_identifier=os.environ['REDSHIFT_CLUSTER'],
+            host=os.environ['REDSHIFT_DB_HOST'],
             database=os.environ['REDSHIFT_DB_NAME'],
-            db_user=os.environ['REDSHIFT_DB_USER'],
-            region=os.environ['AWS_REGION'],
-            access_key_id=os.environ['AWS_ACCESS_KEY_ID'],
-            secret_access_key=os.environ['AWS_SECRET_ACCESS_KEY'])
+            user=os.environ['REDSHIFT_DB_USER'],
+            password=os.environ['REDSHIFT_DB_PASSWORD'])
     except ClientError as e:
         connection = None
         logger.error('Error connecting to database: {}'.format(e))
