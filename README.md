@@ -11,4 +11,4 @@ This repo uses the [Main-QA-Production](https://github.com/NYPL/engineering-gene
 `main` has the latest and greatest commits, `qa` has what's in our QA environment, and `production` has what's in our production environment.
 
 ## Deployment
-CI/CD is not enabled. To deploy a new version of this function, first modify the code in the git repo and open a pull request to the appropriate environment branch. Then follow the directions [here](https://docs.aws.amazon.com/lambda/latest/dg/python-package.html). Note that the redshift_connector package (and any other dependencies that may be added later) must also be included in the zip.
+CI/CD is not enabled. To deploy a new version of this function, first modify the code in the git repo and open a pull request to the appropriate environment branch. Then run `source deployment_script.sh` and upload the resulting zip. Note that if any files are added or deleted, this script must be modified. For more information, see the directions [here](https://docs.aws.amazon.com/lambda/latest/dg/python-package.html).

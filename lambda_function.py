@@ -3,19 +3,20 @@ import os
 import redshift_connector
 
 from botocore.exceptions import ClientError
+from helpers.kms_helper import decrypt
 from helpers.log_helper import create_log
 
 logger = create_log('lambda_function')
 
 
-def lambda_handler(event, context):
+def lambda_handler(event, context):    
     logger.info('Connecting to Redshift')
     try:
         connection = redshift_connector.connect(
-            host=os.environ['REDSHIFT_DB_HOST'],
+            host=decrypt(os.environ['REDSHIFT_DB_HOST']),
             database=os.environ['REDSHIFT_DB_NAME'],
-            user=os.environ['REDSHIFT_DB_USER'],
-            password=os.environ['REDSHIFT_DB_PASSWORD'])
+            user=decrypt(os.environ['REDSHIFT_DB_USER']),
+            password=decrypt(os.environ['REDSHIFT_DB_PASSWORD']))
     except ClientError as e:
         connection = None
         logger.error('Error connecting to database: {}'.format(e))
