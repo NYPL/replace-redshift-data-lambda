@@ -41,6 +41,7 @@ def lambda_handler(event, context):
         cursor.execute('DELETE FROM {staging_table};'.format(
             staging_table=os.environ['STAGING_TABLE']))
         cursor.execute('END TRANSACTION;')
+        connection.commit()
 
         logger.info('Finished transaction')
         return {
