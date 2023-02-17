@@ -1,6 +1,6 @@
 # ReplaceRedshiftDataLambda
 
-This repository contains the code used by the [ReplaceRedshiftData-qa](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/ReplaceRedshiftData-qa?newFunction=true&tab=code) and [[ReplaceRedshiftData-production](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/ReplaceRedshiftData-production?newFunction=true&tab=code) AWS lambda functions. It copies data into a table while ensuring some key remains unique. For now, that key is hardcoded to be the patron_id, but it would be easy to generalize if necessary. Given a staging table and a main table, this function does the following:
+This repository contains the code used by the [ReplaceRedshiftData-qa](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/ReplaceRedshiftData-qa?newFunction=true&tab=code) and [ReplaceRedshiftData-production](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/ReplaceRedshiftData-production?newFunction=true&tab=code) AWS lambda functions. It copies data into a table while ensuring some key remains unique. For now, that key is hardcoded to be the patron_id, but it would be easy to generalize if necessary. Given a staging table and a main table, this function does the following:
 1) Deletes all rows in the main table that match rows in the staging table for a specified column
 2) Copies over all the rows from the staging table into the main table
 3) Deletes all rows in the staging table
