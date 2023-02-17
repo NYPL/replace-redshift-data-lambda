@@ -1,1 +1,2 @@
+nypl-py-utils==0.0.5
 redshift_connector
