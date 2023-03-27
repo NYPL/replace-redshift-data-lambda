@@ -3,7 +3,7 @@ import os
 import redshift_connector
 
 from botocore.exceptions import ClientError
-from nypl_py_utils import KmsClient
+from nypl_py_utils.classes.kms_client import KmsClient
 from nypl_py_utils.functions.log_helper import create_log
 
 logger = create_log('lambda_function')
