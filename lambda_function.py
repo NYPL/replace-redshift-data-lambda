@@ -9,7 +9,7 @@ from nypl_py_utils.functions.log_helper import create_log
 logger = create_log('lambda_function')
 
 
-def lambda_handler(event, context):    
+def lambda_handler(event, context):
     logger.info('Connecting to Redshift')
     kms_client = KmsClient()
     try:
@@ -29,6 +29,20 @@ def lambda_handler(event, context):
     logger.info('Starting transaction')
     try:
         cursor = connection.cursor()
+        cursor.execute('SELECT COUNT(*) FROM {staging_table};'.format(
+            staging_table=os.environ['STAGING_TABLE']))
+        total_length = cursor.fetchall()[0][0]
+        cursor.execute(
+            'SELECT COUNT(DISTINCT patron_id) FROM {staging_table};'.format(
+                staging_table=os.environ['STAGING_TABLE']))
+        distinct_length = cursor.fetchall()[0][0]
+        if total_length != distinct_length:
+            logger.error('Number of distinct patrons does not equal total '
+                         'number of rows')
+            raise ReplaceRedshiftDataError(
+                'Number of distinct patrons does not equal total number of '
+                'rows') from None
+
         cursor.execute('BEGIN TRANSACTION;')
         cursor.execute((
             'DELETE FROM {main_table} '
