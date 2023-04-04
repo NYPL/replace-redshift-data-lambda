@@ -30,7 +30,6 @@ _DUPLICATES_QUERY = '''
 
 def lambda_handler(event, context):
     logger.info('Starting lambda processing')
-
     kms_client = KmsClient()
     redshift_client = RedshiftClient(
         kms_client.decrypt(os.environ['REDSHIFT_DB_HOST']),
