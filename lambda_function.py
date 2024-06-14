@@ -75,8 +75,7 @@ def lambda_handler(event, context):
         insert_query = "INSERT INTO {staging_table} VALUES ({placeholder});".format(
             staging_table=os.environ["STAGING_TABLE"], placeholder=placeholder
         )
-        for value in unique_map.values():
-            queries.append((insert_query, value[:-2]))
+        queries.append((insert_query, [v[:-2] for v in unique_map.values()]))
         redshift_client.execute_transaction(queries)
 
     redshift_client.execute_transaction(

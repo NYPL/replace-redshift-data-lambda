@@ -1,2 +1,2 @@
-nypl-py-utils==1.1.2
+nypl-py-utils==1.1.5
 redshift_connector
