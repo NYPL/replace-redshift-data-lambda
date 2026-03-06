@@ -27,6 +27,13 @@ _DUPLICATES_QUERY = """
     ON t.patron_id = {staging_table}.patron_id
     WHERE patron_count > 1;"""
 
+_COLUMNS_QUERY = """
+    SELECT column_name
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE table_name = '{table}'
+    ORDER BY ordinal_position;
+"""
+
 
 def lambda_handler(event, context):
     logger.info("Starting lambda processing")
@@ -39,6 +46,12 @@ def lambda_handler(event, context):
     )
     kms_client.close()
     redshift_client.connect()
+
+    # Determine all non-id columns in the staging table to construct accurate insert/update queries
+    staging_columns_response = redshift_client.execute_query(
+        _COLUMNS_QUERY.format(table=os.environ["STAGING_TABLE"])
+    )
+    staging_columns = [c[0] for c in staging_columns_response if c[0] != "id"]
 
     logger.info("Checking for duplicate records")
     raw_duplicates = redshift_client.execute_query(
@@ -72,8 +85,12 @@ def lambda_handler(event, context):
         # len(row)-2 because the row contains two extra fields from the join.
         placeholder_length = len(next(iter(unique_map.values()))) - 2
         placeholder = ", ".join(["%s"] * placeholder_length)
-        insert_query = "INSERT INTO {staging_table} VALUES ({placeholder});".format(
-            staging_table=os.environ["STAGING_TABLE"], placeholder=placeholder
+        insert_query = (
+            "INSERT INTO {staging_table} ({columns}) VALUES ({placeholder});".format(
+                staging_table=os.environ["STAGING_TABLE"],
+                columns=", ".join(staging_columns),
+                placeholder=placeholder,
+            )
         )
         queries.append((insert_query, [v[:-2] for v in unique_map.values()]))
         redshift_client.execute_transaction(queries)
@@ -88,8 +105,9 @@ def lambda_handler(event, context):
                 None,
             ),
             (
-                "INSERT INTO {main_table} SELECT * FROM {staging_table};".format(
+                "INSERT INTO {main_table} ({columns}) SELECT {columns} FROM {staging_table};".format(
                     main_table=os.environ["MAIN_TABLE"],
+                    columns=", ".join(staging_columns),
                     staging_table=os.environ["STAGING_TABLE"],
                 ),
                 None,
