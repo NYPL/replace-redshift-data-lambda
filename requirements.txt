@@ -1,2 +1,2 @@
-nypl-py-utils==1.8.0
+nypl-py-utils[redshift-client,config-helper,kms-client,log_helper]==1.8.0
 redshift_connector
