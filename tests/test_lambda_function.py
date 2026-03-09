@@ -3,13 +3,13 @@ import pytest
 
 from copy import deepcopy
 from lambda_function import (
+    _COLUMNS_QUERY,
     _DUPLICATE_DELETION_QUERY,
     _DUPLICATES_QUERY,
     _MAIN_DELETION_QUERY,
     lambda_handler,
     ReplaceRedshiftDataError,
 )
-from tests.test_helpers import TestHelpers
 
 _PLACEHOLDER = "%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s"
 
@@ -20,7 +20,7 @@ _PRIMARY_REDSHIFT_QUERIES = [
         ),
         None,
     ),
-    ("INSERT INTO test_main_table SELECT * FROM test_staging_table;", None),
+    ("INSERT INTO test_main_table (patron_id, address_hash) SELECT patron_id, address_hash FROM test_staging_table;", None),
     ("DELETE FROM test_staging_table;", None),
 ]
 
@@ -33,15 +33,6 @@ _TEST_PATRONS = [
 
 
 class TestLambdaFunction:
-
-    @classmethod
-    def setup_class(cls):
-        TestHelpers.set_env_vars()
-
-    @classmethod
-    def teardown_class(cls):
-        TestHelpers.clear_env_vars()
-
     @pytest.fixture
     def test_instance(self, mocker):
         mocker.patch("lambda_function.create_log")
@@ -49,16 +40,19 @@ class TestLambdaFunction:
         mock_kms_client.decrypt.return_value = "decrypted"
         mocker.patch("lambda_function.KmsClient", return_value=mock_kms_client)
 
-    def get_mock_redshift_client(self, mocker, response):
+    @pytest.fixture
+    def mock_redshift_client(self, mocker):
         mock_redshift_client = mocker.MagicMock()
-        mock_redshift_client.execute_query.return_value = response
         mocker.patch(
             "lambda_function.RedshiftClient", return_value=mock_redshift_client
         )
         return mock_redshift_client
 
-    def test_lambda_handler_no_duplicates(self, test_instance, mocker):
-        mock_redshift_client = self.get_mock_redshift_client(mocker, [])
+    def test_lambda_handler_no_duplicates(self, test_instance, mock_redshift_client, mocker):
+        mock_redshift_client.execute_query.side_effect = [
+            (['id'], ['patron_id'], ['address_hash']),
+            ()
+        ]
 
         assert lambda_handler(None, None) == {
             "statusCode": 200,
@@ -66,19 +60,25 @@ class TestLambdaFunction:
         }
 
         mock_redshift_client.connect.assert_called_once()
-        mock_redshift_client.execute_query.assert_called_once_with(
-            _DUPLICATES_QUERY.format(staging_table="test_staging_table")
+        mock_redshift_client.execute_query.assert_has_calls(
+            [
+                mocker.call(_COLUMNS_QUERY.format(table="test_staging_table")),
+                mocker.call(
+                    _DUPLICATES_QUERY.format(staging_table="test_staging_table")
+                )
+            ]
         )
         mock_redshift_client.execute_transaction.assert_called_once_with(
             _PRIMARY_REDSHIFT_QUERIES
         )
         mock_redshift_client.close_connection.assert_called_once()
 
-    def test_lambda_handler_exact_duplicates(self, test_instance, mocker):
+    def test_lambda_handler_exact_duplicates(self, test_instance, mock_redshift_client, mocker):
         EXACT_DUPLICATE_PATRONS = _TEST_PATRONS + _TEST_PATRONS
-        mock_redshift_client = self.get_mock_redshift_client(
-            mocker, EXACT_DUPLICATE_PATRONS
-        )
+        mock_redshift_client.execute_query.side_effect = [
+            (['id'], ['patron_id'], ['address_hash']),
+            EXACT_DUPLICATE_PATRONS
+        ]
 
         assert lambda_handler(None, None) == {
             "statusCode": 200,
@@ -86,8 +86,13 @@ class TestLambdaFunction:
         }
 
         mock_redshift_client.connect.assert_called_once()
-        mock_redshift_client.execute_query.assert_called_once_with(
-            _DUPLICATES_QUERY.format(staging_table="test_staging_table")
+        mock_redshift_client.execute_query.assert_has_calls(
+            [
+                mocker.call(_COLUMNS_QUERY.format(table="test_staging_table")),
+                mocker.call(
+                    _DUPLICATES_QUERY.format(staging_table="test_staging_table")
+                )
+            ]
         )
         mock_redshift_client.execute_transaction.assert_has_calls(
             [
@@ -101,7 +106,7 @@ class TestLambdaFunction:
                             None,
                         ),
                         (
-                            f"INSERT INTO test_staging_table VALUES ({_PLACEHOLDER});",
+                            f"INSERT INTO test_staging_table (patron_id, address_hash) VALUES ({_PLACEHOLDER});",
                             [v[:-2] for v in _TEST_PATRONS],
                         ),
                     ]
@@ -111,19 +116,25 @@ class TestLambdaFunction:
         )
         mock_redshift_client.close_connection.assert_called_once()
 
-    def test_lambda_handler_inexact_duplicates(self, test_instance, mocker):
+    def test_lambda_handler_inexact_duplicates(self, test_instance, mock_redshift_client, mocker):
         INEXACT_DUPLICATE_PATRONS = deepcopy(_TEST_PATRONS) + deepcopy(_TEST_PATRONS)
         INEXACT_DUPLICATE_PATRONS[-1][1] = "different_address"
-        mock_redshift_client = self.get_mock_redshift_client(
-            mocker, INEXACT_DUPLICATE_PATRONS
-        )
+        mock_redshift_client.execute_query.side_effect = [
+            (['id'], ['patron_id'], ['address_hash']),
+            INEXACT_DUPLICATE_PATRONS
+        ]
 
         with pytest.raises(ReplaceRedshiftDataError) as e:
             lambda_handler(None, None)
 
         assert "Duplicate patron ids with different values found" in e.value.message
         mock_redshift_client.connect.assert_called_once()
-        mock_redshift_client.execute_query.assert_called_once_with(
-            _DUPLICATES_QUERY.format(staging_table="test_staging_table")
+        mock_redshift_client.execute_query.assert_has_calls(
+            [
+                mocker.call(_COLUMNS_QUERY.format(table="test_staging_table")),
+                mocker.call(
+                    _DUPLICATES_QUERY.format(staging_table="test_staging_table")
+                )
+            ]
         )
         mock_redshift_client.execute_transaction.assert_not_called()
